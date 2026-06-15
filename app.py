@@ -2,8 +2,8 @@
 app.py
 
 Gradio interface for FitFindr. The layout and wiring are already set up —
-your job is to fill in handle_query() so it calls run_agent() and maps
-the session results to the three output panels.
+handle_query() calls run_agent() and maps the session results to the three
+output panels.
 
 Run with:
     python app.py
@@ -25,26 +25,54 @@ def handle_query(user_query: str, wardrobe_choice: str) -> tuple[str, str, str]:
     Called by Gradio when the user submits a query.
 
     Args:
-        user_query:     The text the user typed into the search box.
+        user_query:      The text the user typed into the search box.
         wardrobe_choice: Either "Example wardrobe" or "Empty wardrobe (new user)".
 
     Returns:
-        A tuple of three strings:
-            (listing_text, outfit_suggestion, fit_card)
+        A tuple of three strings: (listing_text, outfit_suggestion, fit_card)
         Each string maps to one of the three output panels in the UI.
-
-    TODO:
-        1. Guard against an empty query (return early with an error message).
-        2. Select the wardrobe based on wardrobe_choice.
-        3. Call run_agent() with the query and selected wardrobe.
-        4. If session["error"] is set, return the error in the first panel
-           and empty strings for the other two.
-        5. Otherwise, format session["selected_item"] into a readable listing_text
-           string and return it along with session["outfit_suggestion"] and
-           session["fit_card"].
     """
-    # TODO: implement this function
-    return "Agent not yet implemented.", "", ""
+    # Guard: empty query
+    if not user_query or not user_query.strip():
+        return "Please enter a search query (e.g. 'vintage graphic tee under $30').", "", ""
+
+    # Select wardrobe based on radio choice
+    wardrobe = (
+        get_example_wardrobe()
+        if wardrobe_choice == "Example wardrobe"
+        else get_empty_wardrobe()
+    )
+
+    session = run_agent(user_query, wardrobe)
+
+    # Early exit: something went wrong or no results
+    if session["error"]:
+        return session["error"], "", ""
+
+    # Format the top listing into a readable card
+    item = session["selected_item"]
+    n = len(session["search_results"])
+    brand_line = f"🏷️  Brand: {item['brand']}\n" if item.get("brand") else ""
+
+    listing_text = (
+        f"Found {n} match{'es' if n != 1 else ''} — showing top result:\n\n"
+        f"📦  {item['title']}\n"
+        f"💰  ${item['price']:.0f}  ·  {item['platform'].capitalize()}  ·  {item['condition'].capitalize()}\n"
+        f"📐  Size: {item['size']}\n"
+        f"🎨  Colors: {', '.join(item['colors'])}\n"
+        f"{brand_line}"
+        f"\n\"{item['description']}\""
+    )
+
+    # Append wardrobe note if the wardrobe was empty
+    outfit_text = session["outfit_suggestion"]
+    if session.get("wardrobe_empty"):
+        outfit_text += (
+            "\n\n(You haven't added any wardrobe items yet, so this is a general "
+            "styling suggestion. Add your clothes to get a personalized outfit.)"
+        )
+
+    return listing_text, outfit_text, session["fit_card"]
 
 
 # ── interface ─────────────────────────────────────────────────────────────────
