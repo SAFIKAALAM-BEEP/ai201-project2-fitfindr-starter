@@ -134,16 +134,36 @@ For each tool, describe the specific failure mode you're handling and what the a
 
 Write out what a full user interaction looks like from start to finish — tool call by tool call. Use a specific example query.
 
+FitFindr helps users find secondhand clothing that matches their style and budget, then shows them how to wear it. search_listings is triggered whenever a user describes an item they want (with optional size/price filters); suggest_outfit fires only after a successful search, using the returned item alongside the user's wardrobe to generate a specific styling suggestion; create_fit_card runs last to produce a shareable social caption. If search_listings returns nothing, FitFindr gives the user concrete retry advice and halts. suggest_outfit is never called on empty input.
+
 **Example user query:** "I'm looking for a vintage graphic tee under $30. I mostly wear baggy jeans and chunky sneakers. What's out there and how would I style it?"
 
 **Step 1:**
-<!-- What does the agent do first? Which tool is called? With what input? -->
+The agent calls `search_listings("vintage graphic tee", max_price=30.0)`.
+The tool filters listings.json against the query and price cap. It returns three matches sorted by relevance:
+- lst_006 — Graphic Tee, 2003 Tour Bootleg Style — $24, Depop, good condition, size L
+- lst_033 — Vintage Band Tee, Faded Grey — $19, Depop, fair condition, size L
+- lst_002 — Y2K Baby Tee, Butterfly Print — $18, Depop, excellent condition, size S/M
+
+The agent picks the top result: **lst_006, Graphic Tee (2003 Tour Bootleg Style) — $24, Depop, good condition.**
 
 **Step 2:**
-<!-- What happens next? What was returned from step 1? What tool is called now? -->
+The agent calls `suggest_outfit(new_item=lst_006, wardrobe=example_wardrobe)`.
+It passes the new tee (black, boxy fit; style tags: graphic tee, vintage, grunge, streetwear) alongside the user's wardrobe, which includes baggy straight-leg jeans (w_001), chunky white sneakers (w_007), black combat boots (w_008), a vintage black denim jacket (w_006), and a black crossbody bag (w_010).
+
+The tool returns: *"Wear the bootleg tee tucked loosely into your baggy dark-wash jeans — just the front corner — with your chunky white sneakers for a relaxed 90s streetwear look. Throw your vintage black denim jacket over the top if it's cool out. Keep the bag minimal: your black crossbody finishes it off without competing with the graphic."*
 
 **Step 3:**
-<!-- Continue until the full interaction is complete -->
+The agent calls `create_fit_card(outfit=<suggestion above>, new_item=lst_006)`.
+It returns a ready-to-post social caption based on the outfit and the thrift find.
 
 **Final output to user:**
-<!-- What does the user actually see at the end? -->
+
+> Found you **3 graphic tees under $30** — top pick:
+> 
+> 🛍️ **Graphic Tee — 2003 Tour Bootleg Style** · $24 · Depop · Good condition · Size L
+> 
+> **How to wear it:** Tuck the front corner loosely into your baggy dark-wash jeans with your chunky white sneakers. Throw your vintage black denim jacket over the top if it's cool out. Black crossbody keeps it clean.
+> 
+> **Fit card caption:**
+> *"thrifted this faded bootleg tee off depop for $24 and it was literally made for my baggy jeans 🖤 vintage denim jacket doing the heavy lifting as always"*
